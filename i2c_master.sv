@@ -159,10 +159,56 @@ module i2c_master(
                 end // end if
             end
             data3: begin
-                
+                sda_out = tx_reg[8];
+                data_phase = 1'b1;
+                if (c_reg==qutr) begin
+                    c_next = 0;
+                    state_next = data4;
+                end // end if
             end
-
+            data4: begin
+                sda_out = tx_reg[8];
+                scl_out = 1'b0;
+                data_phase = 1'b1;
+                if (c_reg==qutr) begin
+                    c_next = 0;
+                    if (bit_reg==8) begin  // done with 8 data bits + 1 ack
+                        state_next = data_end; // hold
+                        done_tick_i = 1'b1;
+                    end
+                    else begin
+                        tx_next = {tx_reg[7:0],1'b0};
+                        bit_next = bit_reg + 1;
+                        state_next = data1;
+                    end  // end else
+                end // end if
+            end
+            data_end: begin
+                sda_out = 1'b0;
+                scl_out = 1'b0;
+                if (c_reg==qutr) begin
+                    c_next = 0;
+                    state_next = hold;
+                end // end if
+            end
+            restart:                // generate idle condition
+                if (c_reg==half) begin
+                    c_next = 0;
+                    state_next = start1;
+                end
+            stop1: begin
+                sda_out = 1'b0;
+                if (c_reg==half)begin
+                    c_next = 0;
+                    state_next = stop2;
+                end // end if
+            end
+            default:    // stop2 (for turnaround time)
+                if (c_reg==half)
+                    state_next = idle;
         endcase
+        assign done_tick = done_tick_i;
+        assign ready = ready_i;     
 
     end
 endmodule
